@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<title>האיש התלוי</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%;overflow:hidden;background:#1a1423;font-family:-apple-system,'Segoe UI',Arial,sans-serif;user-select:none;-webkit-user-select:none}
+  #wrap{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:12px}
+  #hud{display:flex;gap:12px;color:#fff;font-size:15px;font-weight:700}
+  #hud span{background:rgba(255,255,255,.1);padding:5px 14px;border-radius:18px}
+  canvas{display:block}
+  #hint{color:#ffd166;font-size:15px;min-height:22px;font-weight:600}
+  #word{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;margin:6px 0;direction:rtl}
+  .lt{width:34px;height:44px;border-bottom:3px solid #8ecae6;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:800;color:#fff}
+  .lt.space{border:none;width:16px}
+  #keys{display:grid;grid-template-columns:repeat(8,1fr);gap:7px;max-width:420px;width:94vw;margin-top:8px}
+  .key{background:linear-gradient(145deg,#3d2f52,#2a1f3d);color:#fff;border:1px solid rgba(255,255,255,.15);border-radius:10px;font-size:19px;font-weight:700;padding:10px 0;cursor:pointer;font-family:inherit;transition:transform .1s}
+  .key:active{transform:scale(.9)}
+  .key:disabled{opacity:.28;cursor:default}
+  .key.good{background:#2d6a4f;border-color:#52b788}
+  .key.badk{background:#6b2128;border-color:#ef476f}
+  .overlay{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:rgba(14,10,22,.87);backdrop-filter:blur(6px);z-index:10;color:#fff;text-align:center;padding:20px}
+  .overlay h1{font-size:34px;margin-bottom:10px;background:linear-gradient(90deg,#ffd166,#ef476f);-webkit-background-clip:text;background-clip:text;color:transparent}
+  .overlay p{font-size:17px;margin-bottom:22px;color:#ddd3ee;line-height:1.7}
+  .btn{background:linear-gradient(135deg,#ffd166,#f4a261);border:none;color:#3a2a10;font-size:19px;font-weight:800;padding:14px 42px;border-radius:40px;cursor:pointer;box-shadow:0 6px 20px rgba(255,209,102,.35);font-family:inherit}
+  .btn:active{transform:scale(.95)}
+  .hidden{display:none}
+</style>
+</head>
+<body>
+<div id="wrap">
+  <div id="hud"><span id="score">רצף: 0</span><span id="tries">ניסיונות: 6</span></div>
+  <canvas id="c" width="300" height="240"></canvas>
+  <div id="hint"></div>
+  <div id="word"></div>
+  <div id="keys"></div>
+</div>
+<div class="overlay" id="startOv">
+  <h1>האיש התלוי</h1>
+  <p>נחשו את המילה אות אחר אות<br>לפני שהאיור יושלם!</p>
+  <button class="btn" id="startBtn">התחל לשחק</button>
+</div>
+<div class="overlay hidden" id="endOv">
+  <h1 id="endTitle"></h1>
+  <p id="endText"></p>
+  <button class="btn" id="againBtn">עוד מילה</button>
+</div>
+<script>
+(function(){
+'use strict';
+var WORDS=[
+ ['חתול','חיית מחמד'],['כלב','חיית מחמד'],['פיל','חיה גדולה'],['אריה','מלך החיות'],['זברה','פסים שחורים ולבנים'],['דולפין','חיה ימית חכמה'],['פרפר','חרק צבעוני'],['ציפור','עפה בשמיים'],['גמל','ספינת המדבר'],['קוף','חיה מצחיקה'],
+ ['שמש','זורחת בבוקר'],['ירח','מאיר בלילה'],['כוכב','נוצץ בשמיים'],['ענן','לבן בשמיים'],['גשם','יורד בחורף'],['קשת','צבעים אחרי הגשם'],['שלג','לבן וקר'],['ים','מים מלוחים'],['נהר','מים זורמים'],['הר','גבוה מאוד'],
+ ['בית','גרים בו'],['דלת','נכנסים דרכה'],['חלון','מסתכלים דרכו'],['כיסא','יושבים עליו'],['שולחן','אוכלים עליו'],['מיטה','ישנים בה'],['מנורה','מאירה את החדר'],['שטיח','על הרצפה'],
+ ['תפוח','פרי אדום'],['בננה','פרי צהוב'],['ענבים','פירות באשכול'],['תפוז','פרי כתום'],['אבטיח','פרי קיץ גדול'],['לימון','פרי חמוץ'],['דובדבן','פרי אדום קטן'],
+ ['אוטובוס','רכב ציבורי'],['מכונית','נוסעת בכביש'],['מטוס','עף בשמיים'],['ספינה','שטה בים'],['אופניים','דוושה וגלגלים'],['רכבת','נוסעת על פסים'],
+ ['מורה','מלמדת בכיתה'],['רופא','מרפא חולים'],['שחקן','משחק בקבוצה'],['זמר','שר במיקרופון'],['טבח','מבשל אוכל'],
+ ['ספר','קוראים בו'],['עיפרון','כותבים איתו'],['כדור','משחקים איתו'],['בובה','צעצוע'],['מתנה','מקבלים ביום הולדת'],['טלפון','מתקשרים איתו'],['מחשב','מסך ומקלדת'],['כובע','שמים על הראש'],['נעל','הולכים איתה'],['כפפה','מחממת את היד']
+];
+var LETTERS='אבגדהוזחטיכלמנסעפצקרשת'.split('');
+var word,hint,guessed,wrong,streak=0,playing=false;
+var cv=document.getElementById('c'),x=cv.getContext('2d');
+x.direction='ltr';
+function pick(){
+  var w=WORDS[Math.floor(Math.random()*WORDS.length)];
+  word=w[0];hint=w[1];guessed={};wrong=0;
+}
+function drawGallows(){
+  x.clearRect(0,0,300,240);
+  x.strokeStyle='#8ecae6';x.lineWidth=5;x.lineCap='round';
+  x.beginPath();x.moveTo(30,225);x.lineTo(270,225);x.stroke();
+  x.beginPath();x.moveTo(70,225);x.lineTo(70,25);x.lineTo(190,25);x.lineTo(190,55);x.stroke();
+  x.strokeStyle='#ffd166';x.lineWidth=4;
+  if(wrong>0){x.beginPath();x.arc(190,75,20,0,7);x.stroke();}
+  if(wrong>1){x.beginPath();x.moveTo(190,95);x.lineTo(190,160);x.stroke();}
+  if(wrong>2){x.beginPath();x.moveTo(190,105);x.lineTo(160,135);x.stroke();}
+  if(wrong>3){x.beginPath();x.moveTo(190,105);x.lineTo(220,135);x.stroke();}
+  if(wrong>4){x.beginPath();x.moveTo(190,160);x.lineTo(165,205);x.stroke();}
+  if(wrong>5){x.beginPath();x.moveTo(190,160);x.lineTo(215,205);x.stroke();
+    x.fillStyle='#ef476f';x.font='bold 12px Arial';x.textAlign='center';x.fillText('×  ×',190,78);}
+}
+function renderWord(){
+  var el=document.getElementById('word');el.innerHTML='';
+  word.split('').forEach(function(ch){
+    var d=document.createElement('div');d.className='lt';
+    d.textContent=guessed[ch]?ch:'';
+    el.appendChild(d);
+  });
+  document.getElementById('hint').textContent='רמז: '+hint;
+  document.getElementById('tries').textContent='ניסיונות: '+(6-wrong);
+}
+function renderKeys(){
+  var el=document.getElementById('keys');el.innerHTML='';
+  LETTERS.forEach(function(ch){
+    var b=document.createElement('button');b.className='key';b.textContent=ch;
+    b.addEventListener('click',function(){guess(ch,b);});
+    el.appendChild(b);
+  });
+}
+function won(){return word.split('').every(function(ch){return guessed[ch];});}
+function guess(ch,btn){
+  if(!playing||guessed[ch])return;
+  guessed[ch]=1;btn.disabled=true;
+  if(word.indexOf(ch)>=0){btn.classList.add('good');}
+  else{btn.classList.add('badk');wrong++;drawGallows();}
+  renderWord();
+  if(won()){
+    playing=false;streak++;
+    document.getElementById('score').textContent='רצף: '+streak;
+    setTimeout(function(){
+      document.getElementById('endTitle').textContent='ניחשתם!';
+      document.getElementById('endText').textContent='המילה היא "'+word+'". רצף הניצחונות: '+streak;
+      document.getElementById('endOv').classList.remove('hidden');
+    },600);
+  }else if(wrong>=6){
+    playing=false;streak=0;
+    document.getElementById('score').textContent='רצף: 0';
+    setTimeout(function(){
+      document.getElementById('endTitle').textContent='לא הפעם...';
+      document.getElementById('endText').textContent='המילה הייתה "'+word+'". מילה חדשה מחכה!';
+      document.getElementById('endOv').classList.remove('hidden');
+    },600);
+  }
+}
+function start(){
+  pick();playing=true;
+  drawGallows();renderWord();renderKeys();
+  document.getElementById('startOv').classList.add('hidden');
+  document.getElementById('endOv').classList.add('hidden');
+}
+document.getElementById('startBtn').addEventListener('click',start);
+document.getElementById('againBtn').addEventListener('click',start);
+drawGallows();pick();renderWord();renderKeys();
+})();
+</script>
+</body>
+</html>
